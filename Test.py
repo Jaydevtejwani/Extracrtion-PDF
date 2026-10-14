@@ -106,7 +106,6 @@ class PDFConverterGUI:
         self.log_text.delete("1.0", tk.END)
         self.log_text.config(state="disabled")
 
-        # Run conversion in a separate thread to keep UI responsive
         threading.Thread(
             target=self.process_conversion,
             args=(in_dir, out_dir),
@@ -135,11 +134,11 @@ class PDFConverterGUI:
             self.append_log(f"[{idx}/{len(pdf_files)}] Converting: {file}")
 
             try:
+                # FIX: 'force_ocr=True' handles both scanned images and mixed text pages smoothly
                 ocrmypdf.ocr(
                     input_pdf,
                     output_pdf,
-                    skip_text=True,   # Keeps existing text layers intact
-                    force_ocr=True,   # Performs OCR on scanned image pages
+                    force_ocr=True,
                     progress_bar=False,
                 )
                 self.append_log(f"   -> Saved: Searchable_{file}")
