@@ -18,18 +18,18 @@ except ImportError:
     CAMELOT_AVAILABLE = False
 
 
-class PDFTableExtractorApp:
+class PDFExtractorApp:
 
     def __init__(self, root):
         self.root = root
-        self.root.title("Scanned PDF Table Extractor GUI")
-        self.root.geometry("680x580")
+        self.root.title("Scanned PDF Processing & Table Extractor")
+        self.root.geometry("700x620")
         self.root.resizable(False, False)
 
         # Variables
         self.folder_path = tk.StringVar()
         self.output_path = tk.StringVar()
-        self.engine_var = tk.StringVar(value="pytesseract")
+        self.action_var = tk.StringVar(value="pytesseract")
 
         self.setup_ui()
 
@@ -41,86 +41,123 @@ class PDFTableExtractorApp:
         frame_input.pack(fill="x", padx=15, pady=8)
 
         ttk.Entry(
-            frame_input, textvariable=self.folder_path, width=54
+            frame_input, textvariable=self.folder_path, width=56
         ).pack(side="left", padx=(0, 8))
         ttk.Button(
             frame_input, text="Browse Folder", command=self.browse_folder
         ).pack(side="left")
 
-        # 2. Output File Selection Frame
-        frame_output = ttk.LabelFrame(
-            self.root, text=" 2. Destination Excel File Path ", padding=10
+        # 2. Output Path Selection Frame
+        self.frame_output = ttk.LabelFrame(
+            self.root,
+            text=" 2. Output Destination (Excel File / Output Directory) ",
+            padding=10,
         )
-        frame_output.pack(fill="x", padx=15, pady=8)
+        self.frame_output.pack(fill="x", padx=15, pady=8)
 
         ttk.Entry(
-            frame_output, textvariable=self.output_path, width=54
+            self.frame_output, textvariable=self.output_path, width=56
         ).pack(side="left", padx=(0, 8))
         ttk.Button(
-            frame_output, text="Save As...", command=self.browse_output
+            self.frame_output, text="Browse...", command=self.browse_output
         ).pack(side="left")
 
-        # 3. Extraction Method Selection Frame
-        frame_engine = ttk.LabelFrame(
-            self.root, text=" 3. Select Extraction Engine ", padding=10
+        # 3. Action Selection Frame
+        frame_action = ttk.LabelFrame(
+            self.root, text=" 3. Select Action ", padding=10
         )
-        frame_engine.pack(fill="x", padx=15, pady=8)
+        frame_action.pack(fill="x", padx=15, pady=8)
 
-        rb_tesseract = ttk.Radiobutton(
-            frame_engine,
-            text="Method 1: PyTesseract OCR (Recommended for scanned PDFs)",
-            variable=self.engine_var,
+        ttk.Radiobutton(
+            frame_action,
+            text="Extract Table Data to Excel (PyTesseract OCR)",
+            variable=self.action_var,
             value="pytesseract",
-        )
-        rb_tesseract.pack(anchor="w", pady=2)
+            command=self.update_output_label,
+        ).pack(anchor="w", pady=2)
 
         rb_camelot = ttk.Radiobutton(
-            frame_engine,
-            text="Method 2: Camelot Library (via OCRmyPDF layer generation)",
-            variable=self.engine_var,
+            frame_action,
+            text="Extract Table Data to Excel (Camelot Engine)",
+            variable=self.action_var,
             value="camelot",
+            command=self.update_output_label,
         )
         rb_camelot.pack(anchor="w", pady=2)
 
+        rb_ocr_only = ttk.Radiobutton(
+            frame_action,
+            text="Convert Scanned PDFs to Searchable PDFs (Save as PDF files)",
+            variable=self.action_var,
+            value="ocr_only",
+            command=self.update_output_label,
+        )
+        rb_ocr_only.pack(anchor="w", pady=2)
+
         if not CAMELOT_AVAILABLE:
             rb_camelot.config(state="disabled")
+            rb_ocr_only.config(state="disabled")
 
         # Start Processing Button
         self.btn_start = ttk.Button(
             self.root,
-            text="Start Batch Extraction",
+            text="Start Processing",
             command=self.start_processing,
         )
         self.btn_start.pack(pady=10)
 
         # Progress Bar
         self.progress = ttk.Progressbar(
-            self.root, orient="horizontal", mode="determinate", length=640
+            self.root, orient="horizontal", mode="determinate", length=660
         )
         self.progress.pack(padx=15, pady=5)
 
-        # Processing Log Display Area
+        # Processing Log Display
         frame_log = ttk.LabelFrame(self.root, text=" Output Log ", padding=10)
         frame_log.pack(fill="both", expand=True, padx=15, pady=10)
 
         self.log_text = tk.Text(frame_log, height=10, state="disabled", wrap="word")
         self.log_text.pack(fill="both", expand=True)
 
+    def update_output_label(self):
+        action = self.action_var.get()
+        folder = self.folder_path.get().strip()
+
+        if action in ["pytesseract", "camelot"]:
+            self.frame_output.config(text=" 2. Destination Excel File Path ")
+            if folder and (
+                not self.output_path.get()
+                or self.output_path.get().endswith("/")
+            ):
+                self.output_path.set(
+                    os.path.join(folder, "Extracted_PDF_Data.xlsx")
+                )
+        else:
+            self.frame_output.config(
+                text=" 2. Output Directory for Searchable PDFs "
+            )
+            if folder:
+                self.output_path.set(os.path.join(folder, "Searchable_PDFs"))
+
     def browse_folder(self):
         selected = filedialog.askdirectory(title="Select Input Directory")
         if selected:
             self.folder_path.set(selected)
-            if not self.output_path.get():
-                self.output_path.set(
-                    os.path.join(selected, "Extracted_PDF_Data.xlsx")
-                )
+            self.update_output_label()
 
     def browse_output(self):
-        selected = filedialog.asksaveasfilename(
-            title="Save Output Excel File As",
-            defaultextension=".xlsx",
-            filetypes=[("Excel Files", "*.xlsx")],
-        )
+        action = self.action_var.get()
+        if action in ["pytesseract", "camelot"]:
+            selected = filedialog.asksaveasfilename(
+                title="Save Output Excel File As",
+                defaultextension=".xlsx",
+                filetypes=[("Excel Files", "*.xlsx")],
+            )
+        else:
+            selected = filedialog.askdirectory(
+                title="Select Output Directory for PDFs"
+            )
+
         if selected:
             self.output_path.set(selected)
 
@@ -142,7 +179,7 @@ class PDFTableExtractorApp:
 
         if not output:
             messagebox.showerror(
-                "Error", "Please specify a destination path for the Excel file."
+                "Error", "Please specify an output file or folder destination."
             )
             return
 
@@ -151,67 +188,101 @@ class PDFTableExtractorApp:
         self.log_text.delete("1.0", tk.END)
         self.log_text.config(state="disabled")
 
-        # Run task in a background thread to prevent UI freezing
         threading.Thread(
-            target=self.run_extraction_task,
-            args=(folder, output, self.engine_var.get()),
+            target=self.run_task,
+            args=(folder, output, self.action_var.get()),
             daemon=True,
         ).start()
 
-    def run_extraction_task(self, folder, output, engine):
+    def run_task(self, folder, output, action):
         pdf_files = [
             f for f in os.listdir(folder) if f.lower().endswith(".pdf")
         ]
 
         if not pdf_files:
-            self.append_log("No PDF files found in the specified directory.")
+            self.append_log("No PDF files found in the specified folder.")
             self.btn_start.config(state="normal")
             return
 
         self.append_log(
-            f"Found {len(pdf_files)} PDF file(s). Engine: '{engine.upper()}'\n"
+            f"Found {len(pdf_files)} PDF file(s). Selected Action: '{action.upper()}'\n"
         )
-        master_data = []
-
         self.progress["maximum"] = len(pdf_files)
         self.progress["value"] = 0
 
-        for idx, file in enumerate(pdf_files, start=1):
-            pdf_path = os.path.join(folder, file)
-            self.append_log(f"[{idx}/{len(pdf_files)}] Processing file: {file}")
+        if action == "ocr_only":
+            # Action: Convert Scanned PDFs to Searchable PDFs
+            if not os.path.exists(output):
+                os.makedirs(output)
 
-            try:
-                if engine == "pytesseract":
-                    rows = self.extract_with_tesseract(pdf_path, file)
-                else:
-                    rows = self.extract_with_camelot(pdf_path, file)
+            for idx, file in enumerate(pdf_files, start=1):
+                input_pdf = os.path.join(folder, file)
+                output_pdf = os.path.join(output, f"Searchable_{file}")
 
-                master_data.extend(rows)
-                self.append_log(f"   -> Successfully extracted {len(rows)} row(s).")
-            except Exception as e:
-                self.append_log(f"   -> ERROR processing {file}: {str(e)}")
+                self.append_log(
+                    f"[{idx}/{len(pdf_files)}] Converting to searchable PDF: {file}"
+                )
+                try:
+                    ocrmypdf.ocr(
+                        input_pdf,
+                        output_pdf,
+                        skip_text=True,
+                        force_ocr=True,
+                        progress_bar=False,
+                    )
+                    self.append_log(
+                        f"   -> Saved searchable PDF to: {output_pdf}"
+                    )
+                except Exception as e:
+                    self.append_log(f"   -> ERROR processing {file}: {str(e)}")
 
-            self.progress["value"] = idx
+                self.progress["value"] = idx
 
-        if master_data:
-            self.append_log("\nWriting data to Excel...")
-            df = pd.DataFrame(master_data)
-            df.to_excel(output, index=False)
-            self.append_log(
-                f"DONE! Data successfully exported to:\n{os.path.abspath(output)}"
-            )
-            messagebox.showinfo("Success", f"Extraction finished!\nSaved to: {output}")
+            self.append_log(f"\nCompleted! All PDFs saved in:\n{output}")
+            messagebox.showinfo("Success", f"Searchable PDFs saved to:\n{output}")
+
         else:
-            self.append_log("\nNo data could be extracted from the provided files.")
-            messagebox.showwarning(
-                "Warning", "No data extracted from PDF files."
-            )
+            # Actions: Extract to Excel
+            master_data = []
+            for idx, file in enumerate(pdf_files, start=1):
+                pdf_path = os.path.join(folder, file)
+                self.append_log(
+                    f"[{idx}/{len(pdf_files)}] Extracting data: {file}"
+                )
+
+                try:
+                    if action == "pytesseract":
+                        rows = self.extract_with_tesseract(pdf_path, file)
+                    else:
+                        rows = self.extract_with_camelot(pdf_path, file)
+
+                    master_data.extend(rows)
+                    self.append_log(
+                        f"   -> Successfully extracted {len(rows)} row(s)."
+                    )
+                except Exception as e:
+                    self.append_log(f"   -> ERROR processing {file}: {str(e)}")
+
+                self.progress["value"] = idx
+
+            if master_data:
+                self.append_log("\nWriting extracted data to Excel...")
+                df = pd.DataFrame(master_data)
+                df.to_excel(output, index=False)
+                self.append_log(
+                    f"DONE! Data saved to Excel:\n{os.path.abspath(output)}"
+                )
+                messagebox.showinfo(
+                    "Success", f"Extraction finished!\nSaved to: {output}"
+                )
+            else:
+                self.append_log("\nNo data extracted from the files.")
+                messagebox.showwarning(
+                    "Warning", "No data extracted from PDF files."
+                )
 
         self.btn_start.config(state="normal")
 
-    # ----------------------------------------------------
-    # Method 1: PyTesseract Engine
-    # ----------------------------------------------------
     def extract_with_tesseract(self, pdf_path, filename):
         all_rows = []
         pages = convert_from_path(pdf_path, dpi=300)
@@ -224,9 +295,7 @@ class PDFTableExtractorApp:
                 if not line_str:
                     continue
 
-                # Split row items by 2 or more space gaps
                 columns = re.split(r"\s{2,}", line_str)
-
                 row = {
                     "File Name": filename,
                     "Page No": page_num,
@@ -240,16 +309,12 @@ class PDFTableExtractorApp:
 
         return all_rows
 
-    # ----------------------------------------------------
-    # Method 2: Camelot Engine (with OCR Pre-processing)
-    # ----------------------------------------------------
     def extract_with_camelot(self, pdf_path, filename):
         all_rows = []
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_pdf:
             temp_pdf_path = temp_pdf.name
 
         try:
-            # Step 1: Create searchable PDF via OCRmyPDF
             ocrmypdf.ocr(
                 pdf_path,
                 temp_pdf_path,
@@ -257,8 +322,6 @@ class PDFTableExtractorApp:
                 force_ocr=True,
                 progress_bar=False,
             )
-
-            # Step 2: Run Camelot stream extraction
             tables = camelot.read_pdf(temp_pdf_path, pages="all", flavor="stream")
 
             for table in tables:
@@ -284,5 +347,5 @@ class PDFTableExtractorApp:
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = PDFTableExtractorApp(root)
+    app = PDFExtractorApp(root)
     root.mainloop()
