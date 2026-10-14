@@ -1,3 +1,4 @@
+pip install pdf2image pytesseract opencv-python numpy pillow reportlab ocrmypdf
 import io
 import os
 import threading
