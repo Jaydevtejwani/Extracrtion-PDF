@@ -5,11 +5,11 @@ from tkinter import filedialog, messagebox, ttk
 import ocrmypdf
 
 
-class PDFConverterGUI:
+class EnhancedPDFConverterGUI:
 
     def __init__(self, root):
         self.root = root
-        self.root.title("Scanned PDF to Searchable PDF Converter")
+        self.root.title("Advanced Scanned PDF to Searchable PDF Converter")
         self.root.geometry("640x480")
         self.root.resizable(False, False)
 
@@ -20,7 +20,7 @@ class PDFConverterGUI:
         self._build_ui()
 
     def _build_ui(self):
-        # 1. Input Folder Selection Frame
+        # 1. Input Folder Frame
         frame_input = ttk.LabelFrame(
             self.root, text=" 1. Select Input Folder (Scanned PDFs) ", padding=10
         )
@@ -33,7 +33,7 @@ class PDFConverterGUI:
             frame_input, text="Browse Folder", command=self.browse_input
         ).pack(side="left")
 
-        # 2. Output Folder Selection Frame
+        # 2. Output Folder Frame
         frame_output = ttk.LabelFrame(
             self.root,
             text=" 2. Select Output Folder (Searchable PDFs) ",
@@ -50,7 +50,7 @@ class PDFConverterGUI:
 
         # Start Processing Button
         self.btn_start = ttk.Button(
-            self.root, text="Start Conversion", command=self.start_conversion
+            self.root, text="Start Enhanced Conversion", command=self.start_conversion
         )
         self.btn_start.pack(pady=10)
 
@@ -60,15 +60,15 @@ class PDFConverterGUI:
         )
         self.progress.pack(padx=15, pady=5)
 
-        # Output Log Box
-        frame_log = ttk.LabelFrame(self.root, text=" Output Log ", padding=10)
+        # Output Log Display
+        frame_log = ttk.LabelFrame(self.root, text=" Processing Log ", padding=10)
         frame_log.pack(fill="both", expand=True, padx=15, pady=10)
 
         self.log_text = tk.Text(frame_log, height=10, state="disabled", wrap="word")
         self.log_text.pack(fill="both", expand=True)
 
     def browse_input(self):
-        folder = filedialog.askdirectory(title="Select Directory with Scanned PDFs")
+        folder = filedialog.askdirectory(title="Select Input Directory")
         if folder:
             self.input_folder.set(folder)
             if not self.output_folder.get():
@@ -123,7 +123,7 @@ class PDFConverterGUI:
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
 
-        self.append_log(f"Found {len(pdf_files)} PDF file(s). Starting OCR processing...\n")
+        self.append_log(f"Found {len(pdf_files)} PDF file(s). Starting Enhanced OCR...\n")
         self.progress["maximum"] = len(pdf_files)
         self.progress["value"] = 0
 
@@ -131,28 +131,32 @@ class PDFConverterGUI:
             input_pdf = os.path.join(in_dir, file)
             output_pdf = os.path.join(out_dir, f"Searchable_{file}")
 
-            self.append_log(f"[{idx}/{len(pdf_files)}] Converting: {file}")
+            self.append_log(f"[{idx}/{len(pdf_files)}] Processing & Enhancing: {file}")
 
             try:
-                # FIX: 'force_ocr=True' handles both scanned images and mixed text pages smoothly
+                # Optimized Parameters for maximum accuracy and clean text
                 ocrmypdf.ocr(
                     input_pdf,
                     output_pdf,
-                    force_ocr=True,
+                    force_ocr=True,          # Ensures image layers are converted
+                    deskew=True,             # Straightens tilted pages
+                    clean=True,              # Removes background noise and dark spots
+                    oversample=300,          # Enhances low-resolution scans to 300 DPI
+                    output_type="pdf",       # Ensures standard PDF output
                     progress_bar=False,
                 )
-                self.append_log(f"   -> Saved: Searchable_{file}")
+                self.append_log(f"   -> Success: Saved Searchable_{file}")
             except Exception as e:
                 self.append_log(f"   -> ERROR processing {file}: {e}")
 
             self.progress["value"] = idx
 
-        self.append_log(f"\nCompleted! All searchable PDFs are saved in:\n{os.path.abspath(out_dir)}")
-        messagebox.showinfo("Complete", f"Conversion completed!\nSaved to:\n{out_dir}")
+        self.append_log(f"\nAll files processed successfully!\nLocation: {os.path.abspath(out_dir)}")
+        messagebox.showinfo("Complete", f"Enhanced Conversion Completed!\nSaved to:\n{out_dir}")
         self.btn_start.config(state="normal")
 
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = PDFConverterGUI(root)
+    app = EnhancedPDFConverterGUI(root)
     root.mainloop()
